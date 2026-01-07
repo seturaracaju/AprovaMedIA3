@@ -17,7 +17,7 @@ Deno.serve(async (req: any) => {
 
   try {
     // 1. Configurações e Validações
-    console.log("Iniciando create-checkout v3 (Robust CPF Handling)...");
+    console.log("Iniciando create-checkout v4 (Multi-Plan Support)...");
     
     const ASAAS_API_KEY = Deno.env.get('ASAAS_API_KEY')
     const SUPABASE_URL = Deno.env.get('SUPABASE_URL')
@@ -38,11 +38,33 @@ Deno.serve(async (req: any) => {
         throw new Error('Corpo da requisição inválido (JSON esperado).');
     }
     
-    const { userId, email, name, cpfCnpj } = body;
+    const { userId, email, name, cpfCnpj, planType } = body;
 
     if (!userId || !email || !cpfCnpj) {
       throw new Error('Dados do usuário incompletos (userId, email ou CPF obrigatórios).')
     }
+
+    // Lógica de Planos
+    let value = 39.90;
+    let cycle = 'MONTHLY';
+    let description = 'Assinatura AprovaMed IA - Plano Mensal';
+
+    if (planType === 'semiannual') {
+        value = 199.00;
+        cycle = 'SEMIANNUALLY';
+        description = 'Assinatura AprovaMed IA - Plano Semestral';
+    } else if (planType === 'annual') {
+        value = 357.00;
+        cycle = 'ANNUALLY';
+        description = 'Assinatura AprovaMed IA - Plano Anual';
+    } else {
+        // Default Monthly
+        value = 39.90;
+        cycle = 'MONTHLY';
+        description = 'Assinatura AprovaMed IA - Plano Mensal';
+    }
+
+    console.log(`Configurando plano: ${planType || 'default(monthly)'} | Valor: ${value} | Ciclo: ${cycle}`);
 
     // --- Helper Functions ---
 
@@ -68,7 +90,6 @@ Deno.serve(async (req: any) => {
 
     // Tenta atualizar um cliente. Retorna status.
     const updateAsaasCustomer = async (id: string, cpf: string) => {
-        console.log(`Tentando atualizar cliente ${id} com CPF ${cpf}...`);
         const response = await fetch(`${ASAAS_URL}/customers/${id}`, {
             method: 'POST',
             headers: {
@@ -81,25 +102,17 @@ Deno.serve(async (req: any) => {
         const json = await response.json();
 
         if (!response.ok) {
-            // Cliente deletado no Asaas
-            if (response.status === 404) {
-                return { success: false, error: 'NOT_FOUND' };
-            }
-            // CPF já está sendo usado por OUTRO cliente (conflito)
+            if (response.status === 404) return { success: false, error: 'NOT_FOUND' };
             if (json.errors && json.errors[0].code === 'CUSTOMER_CPF_CNPJ_ALREADY_EXISTS') {
-                console.warn("Conflito de CPF: Já existe outro cliente com este CPF.");
                 return { success: false, error: 'CPF_EXISTS' };
             }
-            // Outros erros
             const errDesc = json.errors ? json.errors[0].description : response.statusText;
-            console.error("Falha ao atualizar CPF no Asaas:", errDesc);
             throw new Error(`Erro Asaas (Atualização): ${errDesc}`);
         }
         return { success: true };
     };
 
     const createAsaasCustomer = async () => {
-        console.log("Criando novo cliente no Asaas...");
         const response = await fetch(`${ASAAS_URL}/customers`, {
             method: 'POST',
             headers: {
@@ -116,7 +129,6 @@ Deno.serve(async (req: any) => {
 
         if (!response.ok) {
             const json = await response.json();
-            // Se falhar criação porque CPF existe, recuperamos quem é
             if (json.errors && json.errors[0].code === 'CUSTOMER_CPF_CNPJ_ALREADY_EXISTS') {
                  const existing = await getCustomerByCpf(cpfCnpj);
                  if (existing) return existing.id;
@@ -147,11 +159,9 @@ Deno.serve(async (req: any) => {
         if (result.success) {
             finalCustomerId = currentAsaasId;
         } else if (result.error === 'CPF_EXISTS') {
-            // Se o CPF pertence a outro, usamos esse outro
             const existing = await getCustomerByCpf(cpfCnpj);
             if (existing) finalCustomerId = existing.id;
         }
-        // Se NOT_FOUND, ignoramos e seguimos para buscar por email
     }
 
     // 5. Se não resolveu, buscar por Email
@@ -162,20 +172,17 @@ Deno.serve(async (req: any) => {
             if (result.success) {
                 finalCustomerId = existingByEmail.id;
             } else if (result.error === 'CPF_EXISTS') {
-                // Conflito novamente: CPF pertence a um terceiro registro
                 const existingByCpf = await getCustomerByCpf(cpfCnpj);
                 if (existingByCpf) finalCustomerId = existingByCpf.id;
             }
         }
     }
 
-    // 6. Se ainda não resolveu, buscar diretamente pelo CPF (Última chance de evitar duplicação)
+    // 6. Se ainda não resolveu, buscar diretamente pelo CPF
     if (!finalCustomerId) {
         const existingByCpf = await getCustomerByCpf(cpfCnpj);
         if (existingByCpf) {
             finalCustomerId = existingByCpf.id;
-            // Opcional: Atualizar email/nome deste registro para bater com o atual?
-            // Por segurança, evitamos alterar dados de uma conta encontrada só pelo CPF sem confirmar
         }
     }
 
@@ -183,8 +190,6 @@ Deno.serve(async (req: any) => {
     if (!finalCustomerId) {
         finalCustomerId = await createAsaasCustomer();
     }
-
-    console.log("ID Final do Cliente Asaas:", finalCustomerId);
 
     // 8. Atualizar DB se o ID mudou ou foi criado agora
     if (finalCustomerId && finalCustomerId !== currentAsaasId) {
@@ -194,7 +199,7 @@ Deno.serve(async (req: any) => {
             .eq('user_id', userId);
     }
 
-    // 9. Criar Assinatura
+    // 9. Criar Assinatura com o valor e ciclo corretos
     const nextDueDate = new Date();
     nextDueDate.setDate(nextDueDate.getDate() + 1);
     const nextDueDateStr = nextDueDate.toISOString().split('T')[0];
@@ -208,10 +213,10 @@ Deno.serve(async (req: any) => {
         body: JSON.stringify({
           customer: finalCustomerId,
           billingType: 'UNDEFINED', 
-          value: 29.90,
+          value: value,
           nextDueDate: nextDueDateStr, 
-          cycle: 'MONTHLY',
-          description: 'Assinatura AprovaMed IA - Plano Mensal'
+          cycle: cycle,
+          description: description
         })
     })
 
@@ -225,7 +230,6 @@ Deno.serve(async (req: any) => {
     const subscriptionData = await subscriptionResponse.json()
 
     // 10. Obter Link de Pagamento
-    // As vezes a cobrança demora alguns ms para ser gerada após a assinatura
     await new Promise(resolve => setTimeout(resolve, 1500)); 
 
     const chargesResponse = await fetch(`${ASAAS_URL}/payments?subscription=${subscriptionData.id}`, {
@@ -234,7 +238,6 @@ Deno.serve(async (req: any) => {
     const chargesData = await chargesResponse.json()
     
     if (chargesData.data && chargesData.data.length > 0) {
-        console.log("Link de pagamento gerado com sucesso.");
         return new Response(
             JSON.stringify({ paymentUrl: chargesData.data[0].invoiceUrl }),
             { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
