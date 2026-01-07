@@ -73,14 +73,14 @@ const Sidebar: React.FC<SidebarProps> = ({ currentView, setCurrentView, onLogout
             )}
 
             <aside className={sidebarClasses}>
-                {/* Header - Maximizado TOTAL para logo gigante */}
-                <div className={`flex items-center border-b border-gray-800 h-48 ${isCollapsed ? 'justify-center' : 'justify-between'}`}>
+                {/* Header - Altura Reduzida e Logo Aumentada com Scale */}
+                <div className={`flex items-center border-b border-gray-800 h-24 ${isCollapsed ? 'justify-center' : 'justify-between'} overflow-hidden relative`}>
                      {!isCollapsed && (
-                        <div className="flex-1 h-full w-full flex items-center justify-center overflow-hidden">
+                        <div className="flex-1 h-full w-full flex items-center justify-center p-2">
                             <img 
                                 src={logoUrl} 
                                 alt="AprovaMed" 
-                                className="w-full h-full object-contain" 
+                                className="w-full h-full object-contain scale-150" 
                             />
                         </div>
                      )}

@@ -60,14 +60,14 @@ const StudentSidebar: React.FC<StudentSidebarProps> = ({ studentName, currentVie
 
     return (
         <aside className={`${sidebarWidth} bg-gray-900 text-white flex flex-col flex-shrink-0 h-full border-r border-gray-800 transition-all duration-300 ease-in-out`}>
-            {/* Header: Logo & Toggle - Maximizado TOTAL */}
-            <div className={`flex items-center border-b border-gray-800 h-48 ${isCollapsed ? 'justify-center' : 'justify-between'}`}>
+            {/* Header: Logo & Toggle - Altura Reduzida */}
+            <div className={`flex items-center border-b border-gray-800 h-24 ${isCollapsed ? 'justify-center' : 'justify-between'} overflow-hidden relative`}>
                  {!isCollapsed && (
-                    <div className="flex-1 h-full w-full flex items-center justify-center overflow-hidden">
+                    <div className="flex-1 h-full w-full flex items-center justify-center p-2">
                         <img 
                             src={logoUrl} 
                             alt="AprovaMed" 
-                            className="w-full h-full object-contain" 
+                            className="w-full h-full object-contain scale-150" 
                         />
                     </div>
                  )}
