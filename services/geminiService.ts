@@ -1,3 +1,4 @@
+
 import { GoogleGenAI, Type } from "@google/genai";
 import { QuizQuestion, TrueFlashcard } from '../types';
 
@@ -350,41 +351,67 @@ export const transcribeImage = async (file: File): Promise<string> => {
     } catch { return "Erro ao processar imagem."; }
 };
 
+// Implementação de Batching para garantir que todas as questões sejam processadas
 export const generateExplanationsForQuestions = async (questions: QuizQuestion[]): Promise<QuizQuestion[]> => {
-    try {
-        const ai = getAI();
-        // Limitamos para evitar que o output token count estoure o orçamento
-        const subset = questions.slice(0, 10); 
-        const response = await ai.models.generateContent({
-            model: MODEL_NAME,
-            contents: `Explique estas questões médicas de forma didática:\n${JSON.stringify(subset)}`,
-            config: {
-                responseMimeType: "application/json",
-                responseSchema: {
-                    type: Type.OBJECT,
-                    properties: {
-                        explanations: {
-                            type: Type.ARRAY,
-                            items: {
-                                type: Type.OBJECT,
-                                properties: {
-                                    id: { type: Type.INTEGER },
-                                    explanation: { type: Type.STRING }
-                                },
-                                required: ['id', 'explanation']
+    const ai = getAI();
+    const BATCH_SIZE = 5; // Tamanho seguro para evitar timeout ou limites de token
+    const updatedQuestions = [...questions]; // Cópia para mutar com resultados
+
+    for (let i = 0; i < questions.length; i += BATCH_SIZE) {
+        const chunk = questions.slice(i, i + BATCH_SIZE);
+        
+        // Mapeia para um formato que a IA entenda a ordem relativa (0 a BATCH_SIZE-1)
+        const chunkForAI = chunk.map((q, idx) => ({
+            id: idx, // ID relativo ao lote
+            question: q.question,
+            options: q.options,
+            correctAnswerIndex: q.correctAnswerIndex
+        }));
+
+        try {
+            console.log(`Processando lote ${i / BATCH_SIZE + 1} de ${Math.ceil(questions.length / BATCH_SIZE)}...`);
+            
+            const response = await ai.models.generateContent({
+                model: MODEL_NAME,
+                contents: `Explique estas questões médicas de forma didática e aprofundada para estudantes de medicina. Retorne um JSON com o ID e a explicação.\n${JSON.stringify(chunkForAI)}`,
+                config: {
+                    responseMimeType: "application/json",
+                    responseSchema: {
+                        type: Type.OBJECT,
+                        properties: {
+                            explanations: {
+                                type: Type.ARRAY,
+                                items: {
+                                    type: Type.OBJECT,
+                                    properties: {
+                                        id: { type: Type.INTEGER, description: "O ID relativo enviado no prompt (0, 1, 2...)" },
+                                        explanation: { type: Type.STRING }
+                                    },
+                                    required: ['id', 'explanation']
+                                }
                             }
-                        }
+                        },
+                        required: ['explanations']
                     },
-                    required: ['explanations']
                 },
-            },
-        });
-        const parsedData = JSON.parse(cleanJson(response.text || "{}"));
-        const explanations = parsedData.explanations || [];
-        const updated = [...questions];
-        explanations.forEach((item: any) => {
-            if (updated[item.id]) updated[item.id].explanation = item.explanation;
-        });
-        return updated;
-    } catch { return questions; }
+            });
+
+            const parsedData = JSON.parse(cleanJson(response.text || "{}"));
+            const explanations = parsedData.explanations || [];
+
+            // Atualiza o array principal com as explicações recebidas
+            explanations.forEach((item: any) => {
+                const globalIndex = i + item.id;
+                if (updatedQuestions[globalIndex]) {
+                    updatedQuestions[globalIndex].explanation = item.explanation;
+                }
+            });
+
+        } catch (e) {
+            console.error(`Erro ao processar lote começando em índice ${i}:`, e);
+            // Continua para o próximo lote mesmo se este falhar, para não perder tudo
+        }
+    }
+
+    return updatedQuestions;
 };

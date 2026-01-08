@@ -26,7 +26,11 @@ export const QuestionSetDetailModal: React.FC<QuestionSetDetailModalProps> = ({
     const [editingQuestion, setEditingQuestion] = useState<{ question: QuizQuestion; index: number } | null>(null);
     const [hasChanges, setHasChanges] = useState(false);
     const [isSaving, setIsSaving] = useState(false);
+    
+    // AI Generation States
     const [isGeneratingExplanations, setIsGeneratingExplanations] = useState(false);
+    const [generationProgress, setGenerationProgress] = useState(''); // Text feedback for user
+
     const [selectedIndices, setSelectedIndices] = useState<Set<number>>(new Set());
 
     // State for Test Creation UI
@@ -123,41 +127,81 @@ export const QuestionSetDetailModal: React.FC<QuestionSetDetailModalProps> = ({
             return;
         }
         
+        // Lógica Inteligente de Delta:
+        // 1. Verifica quais questões selecionadas NÃO TEM explicação.
+        const questionsMissingExplanation = selectedQuestions.filter(q => !q.explanation || q.explanation.trim().length < 5);
+        
+        let questionsToProcess: QuizQuestion[] = [];
+        
+        if (questionsMissingExplanation.length > 0) {
+            // Se houver questões faltando, prioriza elas (delta update)
+            if (window.confirm(`Detectamos que ${questionsMissingExplanation.length} questões selecionadas ainda não possuem explicação. Deseja gerar APENAS para elas (mais rápido)?\n\nClique em Cancelar para forçar a geração de TODAS as ${selectedQuestions.length} selecionadas.`)) {
+                questionsToProcess = questionsMissingExplanation;
+                setGenerationProgress(`Gerando para ${questionsMissingExplanation.length} questões novas...`);
+            } else {
+                questionsToProcess = selectedQuestions;
+                setGenerationProgress(`Regenerando todas as ${selectedQuestions.length} questões...`);
+            }
+        } else {
+            // Se todas já têm, pergunta se quer regenerar
+            if (!window.confirm("Todas as questões selecionadas já possuem explicação. Deseja gerar novamente?")) return;
+            questionsToProcess = selectedQuestions;
+            setGenerationProgress(`Regenerando todas as ${selectedQuestions.length} questões...`);
+        }
+
         setIsGeneratingExplanations(true);
         
         try {
-            // Merge back into the main list
+            // Criamos um mapa temporário dos índices originais para saber onde atualizar
+            const originalIndicesMap = new Map<QuizQuestion, number>();
+            questions.forEach((q, idx) => {
+                if (questionsToProcess.includes(q)) {
+                    // Nota: a comparação por referência funciona aqui porque questionsToProcess é derivado de selectedQuestions que vem de questions
+                    // Se não funcionar por ref, usaríamos um ID único se tivéssemos, ou compararíamos o texto da pergunta
+                    originalIndicesMap.set(q, idx);
+                } else {
+                    // Fallback comparison by text content if reference fails (e.g. strict mode re-renders)
+                    const foundInProcess = questionsToProcess.find(qp => qp.question === q.question);
+                    if (foundInProcess) originalIndicesMap.set(foundInProcess, idx);
+                }
+            });
+
+            // Chama o serviço (que agora suporta batching automático)
+            const processedResults = await geminiService.generateExplanationsForQuestions(questionsToProcess);
+            
+            // Merge dos resultados
             const newQuestionsList = [...questions];
-            
-            const sortedIndices = (Array.from(selectedIndices) as number[]).sort((a, b) => a - b);
-            const questionsToSend = sortedIndices.map(idx => questions[idx]);
-            
-            const resultQuestions = await geminiService.generateExplanationsForQuestions(questionsToSend);
-            
             let updatedCount = 0;
-            sortedIndices.forEach((originalIdx, i) => {
-                // Check if new explanation was actually added/changed
-                if (resultQuestions[i] && resultQuestions[i].explanation && resultQuestions[i].explanation !== newQuestionsList[originalIdx].explanation) {
-                    newQuestionsList[originalIdx] = {
-                        ...newQuestionsList[originalIdx],
-                        explanation: resultQuestions[i].explanation
-                    };
-                    updatedCount++;
+
+            processedResults.forEach((processedQ) => {
+                // Tenta encontrar o índice original
+                // Precisamos achar a questão correspondente na lista original pelo texto
+                const originalIndex = newQuestionsList.findIndex(oq => oq.question === processedQ.question);
+                
+                if (originalIndex !== -1) {
+                    if (newQuestionsList[originalIndex].explanation !== processedQ.explanation) {
+                        newQuestionsList[originalIndex] = {
+                            ...newQuestionsList[originalIndex],
+                            explanation: processedQ.explanation
+                        };
+                        updatedCount++;
+                    }
                 }
             });
 
             if (updatedCount > 0) {
                 setQuestions(newQuestionsList);
                 setHasChanges(true);
-                alert(`Explicações geradas com sucesso para ${updatedCount} questões! Clique em 'Salvar Alterações' para persistir.`);
+                alert(`Concluído! ${updatedCount} explicações foram geradas/atualizadas com sucesso. Não esqueça de salvar.`);
             } else {
-                alert("A IA analisou as questões mas não gerou novas explicações. Verifique se elas já possuem comentários ou tente novamente.");
+                alert("O processo foi concluído, mas nenhuma alteração foi detectada.");
             }
         } catch (error) {
             console.error(error);
-            alert("Erro ao conectar com a IA. Verifique o console para detalhes.");
+            alert("Erro ao conectar com a IA. Verifique se sua chave API é válida e tente novamente em instantes.");
         } finally {
             setIsGeneratingExplanations(false);
+            setGenerationProgress('');
         }
     };
 
@@ -290,13 +334,20 @@ export const QuestionSetDetailModal: React.FC<QuestionSetDetailModalProps> = ({
                             <button onClick={handleCreateTestClick} disabled={selectedQuestions.length === 0} className="p-2 bg-primary/20 text-primary rounded-lg font-semibold text-sm hover:bg-primary/30 transition-colors flex items-center justify-center gap-2 disabled:bg-gray-200 disabled:text-gray-400">
                                 <ClipboardListIcon className="w-5 h-5"/> Criar Teste ({selectedQuestions.length})
                             </button>
-                             <button onClick={handleGenerateExplanations} disabled={selectedQuestions.length === 0 || isGeneratingExplanations} className="p-2 bg-purple-100 text-purple-700 rounded-lg font-semibold text-sm hover:bg-purple-200 transition-colors flex items-center justify-center gap-2 disabled:bg-gray-200 disabled:text-gray-400">
+                             <button onClick={handleGenerateExplanations} disabled={selectedQuestions.length === 0 || isGeneratingExplanations} className="p-2 bg-purple-100 text-purple-700 rounded-lg font-semibold text-sm hover:bg-purple-200 transition-colors flex items-center justify-center gap-2 disabled:bg-gray-200 disabled:text-gray-400 relative overflow-hidden">
                                 {isGeneratingExplanations ? <div className="w-4 h-4 border-2 border-purple-600 border-t-transparent rounded-full animate-spin"></div> : <SparklesIcon className="w-5 h-5"/>}
-                                {isGeneratingExplanations ? 'Gerando...' : 'Gerar Explicações (IA)'}
+                                {isGeneratingExplanations ? 'Processando...' : 'Gerar Explicações (IA)'}
                             </button>
                             <button onClick={handleDeleteClick} className="p-2 bg-red-100 text-red-700 rounded-lg font-semibold text-sm hover:bg-red-200 transition-colors flex items-center justify-center gap-2">
                                <TrashIcon className="w-5 h-5"/> Deletar Conjunto
                             </button>
+                        </div>
+                    )}
+                    
+                    {/* Generation Progress Indicator */}
+                    {isGeneratingExplanations && (
+                        <div className="mt-2 text-xs text-center font-semibold text-purple-600 animate-pulse bg-purple-50 p-1 rounded">
+                            {generationProgress || 'A IA está analisando suas questões. Isso pode levar alguns segundos...'}
                         </div>
                     )}
                 </header>
