@@ -22,9 +22,6 @@ const StatCard: React.FC<{ title: string; value: string | number; icon: React.El
     </div>
 );
 
-// ... (HiddenWord, SummaryContent, SummaryReaderModal, CreateSummaryModal logic remains the same)
-// Re-declaring for completeness as per instructions
-
 const HiddenWord: FC<{ word: string }> = ({ word }) => {
     const [isRevealed, setIsRevealed] = useState(false);
     if (isRevealed) {
@@ -137,7 +134,7 @@ const SummaryReaderModal: FC<{
          <div className="fixed inset-0 bg-black/50 z-40 flex items-center justify-center p-4" onClick={onClose}>
             <div className="bg-white rounded-2xl shadow-xl w-full max-w-4xl h-[90vh] flex flex-col" onClick={e => e.stopPropagation()}>
                 <header className="p-4 border-b bg-gray-50 flex-shrink-0 flex justify-between items-center">
-                    {isEditing ? <input value={title} onChange={e => setTitle(e.target.value)} className="text-xl font-bold text-gray-800 bg-white border-b-2 border-primary focus:outline-none w-full mr-4"/> : <h2 className="text-xl font-bold text-gray-800 truncate flex-1 mr-4">{title}</h2>}
+                    {isEditing ? <input value={title} onChange={e => setTitle(e.target.value)} className="text-xl font-bold text-gray-800 bg-white border-b-2 border-primary focus:outline-none w-full mr-4 p-2 rounded"/> : <h2 className="text-xl font-bold text-gray-800 truncate flex-1 mr-4">{title}</h2>}
                     <div className="flex items-center gap-2">
                         <button onClick={handleDownloadPDF} disabled={isDownloading} className="p-2 rounded-lg hover:bg-gray-200 text-gray-600 disabled:opacity-50 flex items-center gap-2 font-medium text-sm">
                             {isDownloading ? <div className="w-4 h-4 border-2 border-gray-500 border-t-transparent rounded-full animate-spin"></div> : <DownloadIcon className="w-5 h-5" />}
@@ -146,10 +143,35 @@ const SummaryReaderModal: FC<{
                         <button onClick={onClose} className="p-2 rounded-full hover:bg-gray-200"><XIcon className="w-5 h-5 text-gray-600" /></button>
                     </div>
                 </header>
-                <main className="flex-grow p-6 overflow-y-auto">{isEditing ? <textarea value={content} onChange={e => setContent(e.target.value)} className="w-full h-full p-2 border rounded-md resize-none"/> : <SummaryContent content={content} isStudyMode={isStudyMode} />}</main>
+                <main className="flex-grow p-6 overflow-y-auto bg-white rounded-b-2xl">
+                    {isEditing ? (
+                        <textarea 
+                            value={content} 
+                            onChange={e => setContent(e.target.value)} 
+                            className="w-full h-full p-4 border border-gray-300 rounded-xl resize-none bg-white text-gray-800 focus:ring-2 focus:ring-primary outline-none shadow-inner font-sans leading-relaxed"
+                            placeholder="Escreva o conteúdo do resumo aqui..."
+                        />
+                    ) : (
+                        <SummaryContent content={content} isStudyMode={isStudyMode} />
+                    )}
+                </main>
                  {isEditable && (
-                    <footer className="p-3 bg-gray-100 border-t flex-shrink-0 flex justify-end items-center gap-3">
-                        {isEditing ? <button onClick={handleSave} disabled={isSaving} className="px-4 py-2 bg-primary text-white font-semibold rounded-lg flex items-center gap-2 disabled:bg-gray-400"><SaveIcon className="w-5 h-5" /> {isSaving ? 'Salvando...' : 'Salvar Alterações'}</button> : <><button onClick={handleDelete} className="px-4 py-2 bg-red-100 text-red-700 font-semibold rounded-lg flex items-center gap-2 hover:bg-red-200"><TrashIcon className="w-5 h-5" /> Excluir</button><button onClick={() => setIsEditing(true)} className="px-4 py-2 bg-gray-200 text-gray-800 font-semibold rounded-lg flex items-center gap-2 hover:bg-gray-300"><EditIcon className="w-5 h-5" /> Editar</button></>}
+                    <footer className="p-3 bg-gray-100 border-t flex-shrink-0 flex justify-end items-center gap-3 rounded-b-2xl">
+                        {isEditing ? (
+                            <button onClick={handleSave} disabled={isSaving} className="px-6 py-2 bg-primary text-white font-bold rounded-lg flex items-center gap-2 disabled:bg-gray-400 shadow-md hover:bg-primary-dark transition-all">
+                                <SaveIcon className="w-5 h-5" /> 
+                                {isSaving ? 'Salvando...' : 'Salvar Alterações'}
+                            </button>
+                        ) : (
+                            <>
+                                <button onClick={handleDelete} className="px-4 py-2 bg-red-100 text-red-700 font-semibold rounded-lg flex items-center gap-2 hover:bg-red-200 transition-colors">
+                                    <TrashIcon className="w-5 h-5" /> Excluir
+                                </button>
+                                <button onClick={() => setIsEditing(true)} className="px-4 py-2 bg-white border border-gray-300 text-gray-800 font-semibold rounded-lg flex items-center gap-2 hover:bg-gray-50 transition-colors shadow-sm">
+                                    <EditIcon className="w-5 h-5" /> Editar Resumo
+                                </button>
+                            </>
+                        )}
                     </footer>
                 )}
             </div>
@@ -199,20 +221,20 @@ const CreateSummaryModal: FC<CreateSummaryModalProps> = ({ onClose, onSave }) =>
         } catch(err) { setError((err as Error).message); } finally { setIsSaving(false); }
     };
 
-    const renderSelect = (id: string, value: string, onChange: (e: React.ChangeEvent<HTMLSelectElement>) => void, options: {id: string, name: string}[], placeholder: string) => ( <select id={id} value={value} onChange={onChange} className="w-full p-2 border border-gray-300 rounded-md bg-white"> <option value="">{placeholder}</option> {options.map(opt => <option key={opt.id} value={opt.id}>{opt.name}</option>)} </select> );
+    const renderSelect = (id: string, value: string, onChange: (e: React.ChangeEvent<HTMLSelectElement>) => void, options: {id: string, name: string}[], placeholder: string) => ( <select id={id} value={value} onChange={onChange} className="w-full p-2 border border-gray-300 rounded-md bg-white text-gray-800 focus:ring-2 focus:ring-primary outline-none"> <option value="">{placeholder}</option> {options.map(opt => <option key={opt.id} value={opt.id}>{opt.name}</option>)} </select> );
 
     return (
         <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4" onClick={onClose}>
             <div className="bg-white rounded-2xl shadow-xl w-full max-w-2xl" onClick={e => e.stopPropagation()}>
-                <header className="p-4 border-b flex justify-between items-center"><h2 className="text-xl font-bold text-gray-800">Criar Novo Resumo</h2><button onClick={onClose}><XIcon className="w-5 h-5"/></button></header>
-                <main className="p-6 space-y-4 max-h-[70vh] overflow-y-auto">
-                    <div><label className="block text-sm font-medium text-gray-700 mb-1">Vincular a:</label><div className="space-y-2 p-2 bg-gray-50 border rounded-md">{renderSelect("course-select", selectedCourseId, e => setSelectedCourseId(e.target.value), courses, "Selecione um curso")}{renderSelect("module-select", selectedModuleId, e => setSelectedModuleId(e.target.value), modules, "Selecione um módulo")}{renderSelect("discipline-select", selectedDisciplineId, e => setSelectedDisciplineId(e.target.value), disciplines, "Selecione uma disciplina")}</div></div>
-                    <div><label className="block text-sm font-medium text-gray-700 mb-1">Título</label><input type="text" value={title} onChange={e => setTitle(e.target.value)} className="w-full p-2 border rounded-md"/></div>
-                     <div><label className="block text-sm font-medium text-gray-700 mb-2">Fonte</label><div className="flex gap-4"><label className="flex items-center gap-2 cursor-pointer"><input type="radio" name="contentSource" value="manual" checked={contentSource === 'manual'} onChange={() => setContentSource('manual')} className="h-4 w-4 text-primary focus:ring-primary"/>Manual</label><label className={`flex items-center gap-2 ${!selectedDisciplineId ? 'cursor-not-allowed text-gray-400' : 'cursor-pointer'}`}><input type="radio" name="contentSource" value="ai" checked={contentSource === 'ai'} onChange={() => setContentSource('ai')} disabled={!selectedDisciplineId} className="h-4 w-4 text-primary focus:ring-primary"/>Gerar com IA</label></div></div>
-                    {contentSource === 'manual' ? (<div><label className="block text-sm font-medium text-gray-700 mb-1">Conteúdo</label><textarea value={content} onChange={e => setContent(e.target.value)} rows={8} className="w-full p-2 border rounded-md"/></div>) : (<div><label className="block text-sm font-medium text-gray-700 mb-1">Selecione os Assuntos</label>{isLoadingSets ? <div className="p-4 text-center text-gray-500 border rounded-md">Carregando...</div> : availableQuestionSets.length > 0 ? (<div className="max-h-48 overflow-y-auto border rounded-md p-2 space-y-1 bg-white">{availableQuestionSets.map(qs => (<label key={qs.id} className="flex items-center gap-2 p-2 rounded hover:bg-gray-50 cursor-pointer border-b last:border-0 border-gray-50"><input type="checkbox" checked={selectedQuestionSetIds.has(qs.id)} onChange={() => handleToggleQuestionSet(qs.id)} className="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary"/><div><p className="text-sm font-medium text-gray-800">{qs.subjectName}</p><p className="text-xs text-gray-500">{qs.questions.length} questões</p></div></label>))}</div>) : <p className="text-sm text-gray-500 italic p-3 border rounded-md bg-gray-50">Sem assuntos.</p>}</div>)}
-                    {error && <p className="text-red-500 text-sm">{error}</p>}
+                <header className="p-4 border-b flex justify-between items-center bg-gray-50 rounded-t-2xl"><h2 className="text-xl font-bold text-gray-800">Criar Novo Resumo</h2><button onClick={onClose} className="p-1 hover:bg-gray-200 rounded-full"><XIcon className="w-5 h-5 text-gray-500"/></button></header>
+                <main className="p-6 space-y-4 max-h-[70vh] overflow-y-auto bg-white">
+                    <div><label className="block text-xs font-bold text-gray-500 uppercase mb-1">Vincular a:</label><div className="space-y-2 p-3 bg-gray-50 border rounded-xl">{renderSelect("course-select", selectedCourseId, e => setSelectedCourseId(e.target.value), courses, "Selecione um curso")}{renderSelect("module-select", selectedModuleId, e => setSelectedModuleId(e.target.value), modules, "Selecione um módulo")}{renderSelect("discipline-select", selectedDisciplineId, e => setSelectedDisciplineId(e.target.value), disciplines, "Selecione uma disciplina")}</div></div>
+                    <div><label className="block text-xs font-bold text-gray-500 uppercase mb-1">Título do Resumo</label><input type="text" value={title} onChange={e => setTitle(e.target.value)} className="w-full p-3 border border-gray-300 rounded-lg bg-white text-gray-800 focus:ring-2 focus:ring-primary outline-none" placeholder="Ex: Protocolo de Crise Hipertensiva"/></div>
+                     <div><label className="block text-xs font-bold text-gray-500 uppercase mb-2">Fonte de Conteúdo</label><div className="flex gap-4"><label className="flex items-center gap-2 cursor-pointer text-sm text-gray-700 font-medium"><input type="radio" name="contentSource" value="manual" checked={contentSource === 'manual'} onChange={() => setContentSource('manual')} className="h-4 w-4 text-primary focus:ring-primary"/>Escrita Manual</label><label className={`flex items-center gap-2 text-sm font-medium ${!selectedDisciplineId ? 'cursor-not-allowed text-gray-400' : 'cursor-pointer text-gray-700'}`}><input type="radio" name="contentSource" value="ai" checked={contentSource === 'ai'} onChange={() => setContentSource('ai')} disabled={!selectedDisciplineId} className="h-4 w-4 text-primary focus:ring-primary"/>Gerar com IA (A partir de questões)</label></div></div>
+                    {contentSource === 'manual' ? (<div><label className="block text-xs font-bold text-gray-500 uppercase mb-1">Conteúdo do Resumo</label><textarea value={content} onChange={e => setContent(e.target.value)} rows={8} className="w-full p-3 border border-gray-300 rounded-lg bg-white text-gray-800 focus:ring-2 focus:ring-primary outline-none resize-none" placeholder="Digite ou cole aqui o conteúdo..."/></div>) : (<div><label className="block text-xs font-bold text-gray-500 uppercase mb-1">Selecione os Assuntos Base</label>{isLoadingSets ? <div className="p-4 text-center text-gray-500 border rounded-lg bg-gray-50 animate-pulse">Buscando assuntos...</div> : availableQuestionSets.length > 0 ? (<div className="max-h-48 overflow-y-auto border border-gray-200 rounded-lg p-2 space-y-1 bg-white custom-scrollbar">{availableQuestionSets.map(qs => (<label key={qs.id} className="flex items-center gap-2 p-3 rounded-lg hover:bg-primary/5 cursor-pointer border-b last:border-0 border-gray-100 transition-colors"><input type="checkbox" checked={selectedQuestionSetIds.has(qs.id)} onChange={() => handleToggleQuestionSet(qs.id)} className="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary"/><div><p className="text-sm font-bold text-gray-800">{qs.subjectName}</p><p className="text-xs text-gray-500">{qs.questions.length} questões disponíveis</p></div></label>))}</div>) : <p className="text-sm text-gray-500 italic p-4 border rounded-lg bg-gray-50 text-center">Nenhum assunto encontrado nesta disciplina.</p>}</div>)}
+                    {error && <p className="text-red-500 text-sm font-bold p-2 bg-red-50 rounded border border-red-100">{error}</p>}
                 </main>
-                <footer className="p-4 bg-gray-50 flex justify-end gap-3"><button onClick={onClose} className="px-4 py-2 text-gray-700 font-semibold hover:bg-gray-200 rounded-lg">Cancelar</button><button onClick={handleSaveClick} disabled={isSaving} className="px-6 py-2 bg-primary text-white rounded-lg font-semibold hover:bg-primary-dark disabled:bg-gray-400 flex items-center gap-2">{isSaving ? 'Salvando...' : 'Salvar Resumo'}</button></footer>
+                <footer className="p-4 bg-gray-50 flex justify-end gap-3 rounded-b-2xl border-t"><button onClick={onClose} className="px-6 py-2 text-gray-600 font-semibold hover:bg-gray-200 rounded-lg transition-colors">Cancelar</button><button onClick={handleSaveClick} disabled={isSaving} className="px-8 py-2 bg-primary text-white rounded-lg font-bold hover:bg-primary-dark disabled:bg-gray-400 flex items-center gap-2 shadow-md transition-all">{isSaving ? <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div> : <SaveIcon className="w-5 h-5" />} {isSaving ? 'Processando...' : 'Salvar Resumo'}</button></footer>
             </div>
         </div>
     );

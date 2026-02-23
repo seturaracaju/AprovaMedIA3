@@ -293,3 +293,41 @@ export const moveQuestionSet = async (questionSetId: string, newDisciplineId: st
     }
     return true;
 };
+
+export const moveQuestionsBetweenSets = async (
+    sourceSetId: string,
+    targetSetId: string,
+    questionsToMove: QuizQuestion[]
+): Promise<boolean> => {
+    try {
+        // 1. Carrega ambos os conjuntos
+        const [sourceRes, targetRes] = await Promise.all([
+            supabase.from('question_sets').select('questions').eq('id', sourceSetId).single(),
+            supabase.from('question_sets').select('questions').eq('id', targetSetId).single()
+        ]);
+
+        if (sourceRes.error || targetRes.error) throw new Error("Erro ao carregar os conjuntos de questões.");
+
+        const sourceQuestions: QuizQuestion[] = sourceRes.data.questions || [];
+        const targetQuestions: QuizQuestion[] = targetRes.data.questions || [];
+
+        // 2. Remove da origem (comparando por texto da pergunta como ID único)
+        const moveTexts = new Set(questionsToMove.map(q => q.question));
+        const updatedSource = sourceQuestions.filter(q => !moveTexts.has(q.question));
+
+        // 3. Adiciona ao final do destino
+        const updatedTarget = [...targetQuestions, ...questionsToMove];
+
+        // 4. Salva ambos (idealmente em transação, mas Supabase JS faz sequencial)
+        const { error: err1 } = await supabase.from('question_sets').update({ questions: updatedSource }).eq('id', sourceSetId);
+        if (err1) throw err1;
+
+        const { error: err2 } = await supabase.from('question_sets').update({ questions: updatedTarget }).eq('id', targetSetId);
+        if (err2) throw err2;
+
+        return true;
+    } catch (error) {
+        console.error("Erro ao transplantar questões:", error);
+        return false;
+    }
+};

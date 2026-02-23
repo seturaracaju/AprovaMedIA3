@@ -1,9 +1,11 @@
 
 import React, { useState, useEffect, useMemo } from 'react';
-import { QuestionSet, QuizQuestion } from '../types';
+import { QuestionSet, QuizQuestion, Course } from '../types';
 import { XIcon, LayersIcon, ClipboardListIcon, TrashIcon, SaveIcon, EditIcon, MoveIcon, SparklesIcon } from './IconComponents';
 import EditQuestionModal from './EditQuestionModal';
+import MoveQuestionsModal from './MoveQuestionsModal';
 import * as questionBankService from '../services/questionBankService';
+import * as academicService from '../services/academicService';
 import * as geminiService from '../services/geminiService';
 
 interface QuestionSetDetailModalProps {
@@ -27,6 +29,10 @@ export const QuestionSetDetailModal: React.FC<QuestionSetDetailModalProps> = ({
     const [hasChanges, setHasChanges] = useState(false);
     const [isSaving, setIsSaving] = useState(false);
     
+    // Move Questions Feature
+    const [isMoveModalOpen, setIsMoveModalOpen] = useState(false);
+    const [structuredData, setStructuredData] = useState<Course[]>([]);
+
     // AI Generation States
     const [isGeneratingExplanations, setIsGeneratingExplanations] = useState(false);
     const [generationProgress, setGenerationProgress] = useState(''); // Text feedback for user
@@ -58,6 +64,9 @@ export const QuestionSetDetailModal: React.FC<QuestionSetDetailModalProps> = ({
             setSubjectName(questionSet.subjectName);
             setHasChanges(false);
             setIsLoading(false);
+            
+            // Pré-carrega dados para o modal de mover se necessário
+            academicService.getStructuredDataForManagement().then(setStructuredData);
         };
         loadFullData();
     }, [questionSet]);
@@ -268,8 +277,8 @@ export const QuestionSetDetailModal: React.FC<QuestionSetDetailModalProps> = ({
                         </div>
                         <div className="flex items-center">
                             {onMoveRequest && (
-                                <button onClick={() => onMoveRequest(questionSet)} className="p-2 rounded-lg hover:bg-gray-200 text-gray-600 flex items-center gap-1 text-sm font-semibold">
-                                    <MoveIcon className="w-4 h-4" /> Mover
+                                <button onClick={() => onMoveRequest(questionSet)} className="p-2 rounded-lg hover:bg-gray-200 text-gray-600 flex items-center gap-1 text-sm font-semibold" title="Mover este assunto inteiro">
+                                    <MoveIcon className="w-4 h-4" /> Mover Assunto
                                 </button>
                             )}
                             <button onClick={onClose} className="p-2 rounded-full hover:bg-gray-200 ml-2">
@@ -307,27 +316,31 @@ export const QuestionSetDetailModal: React.FC<QuestionSetDetailModalProps> = ({
                             </div>
                         </div>
                     ) : (
-                        <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-2">
-                             <button onClick={handleStudyClick} disabled={selectedQuestions.length === 0} className="p-2 bg-amber-400 text-amber-900 rounded-lg font-semibold text-sm hover:bg-amber-500 transition-colors flex items-center justify-center gap-2 disabled:bg-gray-400 disabled:text-white">
-                                <LayersIcon className="w-5 h-5"/> Estudar ({selectedQuestions.length})
+                        <div className="mt-4 flex flex-wrap gap-2">
+                             <button onClick={handleStudyClick} disabled={selectedQuestions.length === 0} className="flex-1 min-w-[120px] p-2 bg-amber-400 text-amber-900 rounded-lg font-semibold text-xs hover:bg-amber-500 transition-colors flex items-center justify-center gap-1 disabled:bg-gray-400 disabled:text-white">
+                                <LayersIcon className="w-4 h-4"/> Estudar ({selectedQuestions.length})
                             </button>
-                            <button onClick={handleCreateTestClick} disabled={selectedQuestions.length === 0} className="p-2 bg-primary/20 text-primary rounded-lg font-semibold text-sm hover:bg-primary/30 transition-colors flex items-center justify-center gap-2 disabled:bg-gray-200 disabled:text-gray-400">
-                                <ClipboardListIcon className="w-5 h-5"/> Criar Teste ({selectedQuestions.length})
+                            <button onClick={handleCreateTestClick} disabled={selectedQuestions.length === 0} className="flex-1 min-w-[120px] p-2 bg-primary/20 text-primary rounded-lg font-semibold text-xs hover:bg-primary/30 transition-colors flex items-center justify-center gap-1 disabled:bg-gray-200 disabled:text-gray-400">
+                                <ClipboardListIcon className="w-4 h-4"/> Criar Teste ({selectedQuestions.length})
                             </button>
-                             <button onClick={handleGenerateExplanations} disabled={selectedQuestions.length === 0 || isGeneratingExplanations} className="p-2 bg-purple-100 text-purple-700 rounded-lg font-semibold text-sm hover:bg-purple-200 transition-colors flex items-center justify-center gap-2 disabled:bg-gray-200 disabled:text-gray-400 relative overflow-hidden">
-                                {isGeneratingExplanations ? <div className="w-4 h-4 border-2 border-purple-600 border-t-transparent rounded-full animate-spin"></div> : <SparklesIcon className="w-5 h-5"/>}
-                                {isGeneratingExplanations ? 'Processando...' : 'Gerar Explicações (IA)'}
+                            {/* NOVO: Botão Mover Selecionadas */}
+                             <button onClick={() => setIsMoveModalOpen(true)} disabled={selectedQuestions.length === 0} className="flex-1 min-w-[120px] p-2 bg-blue-50 text-blue-700 rounded-lg font-semibold text-xs hover:bg-blue-100 border border-blue-200 transition-colors flex items-center justify-center gap-1 disabled:bg-gray-200 disabled:text-gray-400 disabled:border-transparent">
+                                <MoveIcon className="w-4 h-4"/> Mover Selecionadas
                             </button>
-                            <button onClick={handleDeleteClick} className="p-2 bg-red-100 text-red-700 rounded-lg font-semibold text-sm hover:bg-red-200 transition-colors flex items-center justify-center gap-2">
-                               <TrashIcon className="w-5 h-5"/> Deletar Conjunto
+                             <button onClick={handleGenerateExplanations} disabled={selectedQuestions.length === 0 || isGeneratingExplanations} className="flex-1 min-w-[140px] p-2 bg-purple-100 text-purple-700 rounded-lg font-semibold text-xs hover:bg-purple-200 transition-colors flex items-center justify-center gap-1 disabled:bg-gray-200 disabled:text-gray-400 relative overflow-hidden">
+                                {isGeneratingExplanations ? <div className="w-3 h-3 border-2 border-purple-600 border-t-transparent rounded-full animate-spin"></div> : <SparklesIcon className="w-4 h-4"/>}
+                                {isGeneratingExplanations ? 'Processando...' : 'Explicar IA'}
+                            </button>
+                            <button onClick={handleDeleteClick} className="p-2 bg-red-100 text-red-700 rounded-lg font-semibold text-xs hover:bg-red-200 transition-colors flex items-center justify-center gap-1">
+                               <TrashIcon className="w-4 h-4"/> Deletar Conjunto
                             </button>
                         </div>
                     )}
                     
                     {/* Generation Progress Indicator */}
                     {isGeneratingExplanations && (
-                        <div className="mt-2 text-xs text-center font-semibold text-purple-600 animate-pulse bg-purple-50 p-1 rounded">
-                            {generationProgress || 'A IA está analisando suas questões. Isso pode levar alguns segundos...'}
+                        <div className="mt-2 text-[10px] text-center font-semibold text-purple-600 animate-pulse bg-purple-50 p-1 rounded">
+                            {generationProgress || 'A IA está analisando suas questões...'}
                         </div>
                     )}
                 </header>
@@ -361,19 +374,19 @@ export const QuestionSetDetailModal: React.FC<QuestionSetDetailModalProps> = ({
                                                 className="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary mt-1 flex-shrink-0"
                                             />
                                             <div className="flex-grow">
-                                                <p className="font-semibold mb-2 text-gray-700 flex-grow"><span className="text-gray-400 mr-2">#{index + 1}</span> {q.question}</p>
+                                                <p className="font-semibold mb-2 text-gray-700 flex-grow text-sm"><span className="text-gray-400 mr-2">#{index + 1}</span> {q.question}</p>
                                                 
                                                 {/* Action Buttons Row */}
                                                 <div className="flex gap-3 opacity-0 group-hover:opacity-100 transition-opacity">
                                                     <button
                                                         onClick={() => setEditingQuestion({ question: q, index })}
-                                                        className="text-xs font-bold text-primary hover:underline flex items-center gap-1"
+                                                        className="text-[10px] font-bold text-primary hover:underline flex items-center gap-1 uppercase"
                                                     >
                                                         <EditIcon className="w-3 h-3"/> Editar
                                                     </button>
                                                     <button
                                                         onClick={() => handleDeleteQuestion(index)}
-                                                        className="text-xs font-bold text-red-500 hover:underline flex items-center gap-1"
+                                                        className="text-[10px] font-bold text-red-500 hover:underline flex items-center gap-1 uppercase"
                                                     >
                                                         <TrashIcon className="w-3 h-3"/> Excluir
                                                     </button>
@@ -383,7 +396,7 @@ export const QuestionSetDetailModal: React.FC<QuestionSetDetailModalProps> = ({
                                     </div>
                                     <ul className="space-y-2 pl-8 mt-2">
                                         {q.options.map((opt, i) => (
-                                            <li key={i} className={`text-sm flex items-start gap-3 ${q.correctAnswerIndex === null ? 'text-gray-500' : i === q.correctAnswerIndex ? 'font-bold text-green-800' : 'text-gray-600'}`}>
+                                            <li key={i} className={`text-xs flex items-start gap-3 ${q.correctAnswerIndex === null ? 'text-gray-500' : i === q.correctAnswerIndex ? 'font-bold text-green-800' : 'text-gray-600'}`}>
                                                 <span className="mt-0.5">{i === q.correctAnswerIndex ?
                                                     <svg className="w-4 h-4 text-green-600 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd"></path></svg>
                                                     : <div className="w-4 h-4 border-2 border-gray-300 rounded-full flex-shrink-0"></div>
@@ -392,7 +405,7 @@ export const QuestionSetDetailModal: React.FC<QuestionSetDetailModalProps> = ({
                                                 <span>{opt}</span>
                                             </li>
                                         ))}
-                                        {q.correctAnswerIndex === null && <p className="text-xs italic text-yellow-600 mt-2">Resposta correta não definida.</p>}
+                                        {q.correctAnswerIndex === null && <p className="text-[10px] italic text-yellow-600 mt-2">Gabarito não definido.</p>}
                                     </ul>
                                      {q.mediaUrl && (
                                         <div className="mt-3 pl-8">
@@ -400,8 +413,8 @@ export const QuestionSetDetailModal: React.FC<QuestionSetDetailModalProps> = ({
                                         </div>
                                      )}
                                      {q.explanation && (
-                                        <div className="mt-3 pl-8 text-xs text-gray-600 italic border-l-4 border-purple-200 pl-3 bg-purple-50 p-2 rounded-r-md">
-                                            <strong className="text-purple-700 block mb-1">Comentário do Professor (IA):</strong> 
+                                        <div className="mt-3 pl-8 text-[11px] text-gray-600 italic border-l-2 border-purple-200 pl-3 bg-purple-50/50 p-2 rounded-r-md">
+                                            <strong className="text-purple-700 block mb-0.5 text-[10px] uppercase">Comentário Professor:</strong> 
                                             <div className="whitespace-pre-wrap">{q.explanation}</div>
                                         </div>
                                      )}
@@ -414,7 +427,7 @@ export const QuestionSetDetailModal: React.FC<QuestionSetDetailModalProps> = ({
                 {hasChanges && (
                      <footer className="p-4 bg-yellow-50 border-t border-yellow-200 flex justify-between items-center gap-4 animate-fade-in-up">
                         <p className="text-sm font-bold text-yellow-800 flex items-center gap-2">
-                            ⚠️ Você tem alterações não salvas.
+                            ⚠️ Alterações não salvas.
                         </p>
                         <button
                             onClick={handleSaveChanges}
@@ -422,7 +435,7 @@ export const QuestionSetDetailModal: React.FC<QuestionSetDetailModalProps> = ({
                             className="px-6 py-2 bg-primary text-white rounded-lg font-semibold hover:bg-primary-dark transition-colors flex items-center gap-2 disabled:bg-gray-400 shadow-md"
                         >
                             <SaveIcon className="w-5 h-5" />
-                            {isSaving ? 'Salvando...' : 'Salvar Agora'}
+                            {isSaving ? 'Salvando...' : 'Salvar Alterações'}
                         </button>
                     </footer>
                 )}
@@ -435,6 +448,19 @@ export const QuestionSetDetailModal: React.FC<QuestionSetDetailModalProps> = ({
                     onSave={(updatedQuestion) => {
                         handleSaveQuestion(updatedQuestion);
                         setEditingQuestion(null);
+                    }}
+                />
+            )}
+
+            {isMoveModalOpen && (
+                <MoveQuestionsModal
+                    sourceSetId={questionSet.id}
+                    questionsToMove={selectedQuestions}
+                    structuredData={structuredData}
+                    onClose={() => setIsMoveModalOpen(false)}
+                    onSuccess={() => {
+                        setIsMoveModalOpen(false);
+                        onClose(); // Fecha o detalhe para recarregar no pai
                     }}
                 />
             )}

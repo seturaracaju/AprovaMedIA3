@@ -134,7 +134,7 @@ const TeacherApp: React.FC = () => {
                         <MenuIcon className="w-6 h-6" />
                     </button>
                     <div className="h-full flex-grow flex items-center justify-center p-1 overflow-hidden">
-                        <img src={logoUrl} alt="AprovaMed" className="h-full w-auto object-contain scale-150" />
+                        <img src={logoUrl} alt="AprovaMed" className="h-full w-auto object-contain scale-[2.5]" />
                     </div>
                     <div className="w-8"></div> {/* Spacer para balancear */}
                 </header>

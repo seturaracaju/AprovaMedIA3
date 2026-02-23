@@ -48,12 +48,27 @@ const ChatView: React.FC<ChatViewProps> = ({ pdfFile, pdfText, fileName, onStart
         setSelectedQuestionIndices(new Set());
     }, [questionBank]);
 
-    
-    const handleExtractQuestions = async () => {
+    // Updated handler to accept extraction mode and focus
+    const handleExtractQuestions = async (mode: 'replace' | 'append' = 'replace', focus: 'all' | 'end' = 'all') => {
         setIsExtracting(true);
-        setQuestionBank(null);
-        const extracted = await extractQuestionsFromPdf(pdfText);
-        setQuestionBank(extracted);
+        if (mode === 'replace') {
+            setQuestionBank(null); // Limpa se for substituir
+        }
+        
+        const extracted = await extractQuestionsFromPdf(pdfText, focus);
+        
+        if (extracted) {
+            setQuestionBank(prev => {
+                if (mode === 'append' && prev) {
+                    // Evita duplicatas exatas ao anexar
+                    const existingQuestions = new Set(prev.map(q => q.question));
+                    const newUnique = extracted.filter(q => !existingQuestions.has(q.question));
+                    return [...prev, ...newUnique];
+                }
+                return extracted;
+            });
+        }
+        
         setIsExtracting(false);
         setActiveTab('questions');
     };

@@ -80,7 +80,7 @@ const Sidebar: React.FC<SidebarProps> = ({ currentView, setCurrentView, onLogout
                             <img 
                                 src={logoUrl} 
                                 alt="AprovaMed" 
-                                className="w-full h-full object-contain scale-150" 
+                                className="w-full h-full object-contain scale-[2.5]" 
                             />
                         </div>
                      )}

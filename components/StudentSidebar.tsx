@@ -67,7 +67,7 @@ const StudentSidebar: React.FC<StudentSidebarProps> = ({ studentName, currentVie
                         <img 
                             src={logoUrl} 
                             alt="AprovaMed" 
-                            className="w-full h-full object-contain scale-150" 
+                            className="w-full h-full object-contain scale-[2.5]" 
                         />
                     </div>
                  )}
