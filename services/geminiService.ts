@@ -2,25 +2,22 @@
 import { GoogleGenAI, Type } from "@google/genai";
 import { QuizQuestion, TrueFlashcard } from '../types';
 
+const MODEL_NAME = 'gemini-3-flash-preview';
+
 // Helper para obter a instância da IA apenas quando necessário
 const getAI = () => {
-    let apiKey = '';
+    // O Vite substituirá estas strings pelos valores reais durante o build
     // @ts-ignore
-    if (typeof import.meta !== 'undefined' && import.meta.env) {
-        // @ts-ignore
-        apiKey = import.meta.env.VITE_API_KEY || '';
-    }
-    if (!apiKey && typeof process !== 'undefined' && process.env) {
-        apiKey = process.env.API_KEY || process.env.VITE_API_KEY || '';
-    }
+    const apiKey = (typeof process !== 'undefined' && process.env?.GEMINI_API_KEY) || 
+                   // @ts-ignore
+                   (typeof import.meta !== 'undefined' && import.meta.env?.VITE_GEMINI_API_KEY);
+
     if (!apiKey) {
-        console.error("ERRO CRÍTICO: Nenhuma API Key encontrada. Verifique VITE_API_KEY na Vercel.");
-        throw new Error("Chave de API não configurada. Adicione 'VITE_API_KEY' nas variáveis de ambiente.");
+        console.error("ERRO: GEMINI_API_KEY não encontrada no ambiente.");
+        throw new Error("Chave de API não configurada. Verifique os Secrets no AI Studio e faça um novo Deploy.");
     }
     return new GoogleGenAI({ apiKey: apiKey });
 };
-
-const MODEL_NAME = 'gemini-3-flash-preview';
 
 // Helper to clean JSON string from Markdown formatting
 const cleanJson = (text: string): string => {
@@ -104,6 +101,8 @@ const extractQuestionsFromChunk = async (chunkText: string): Promise<QuizQuestio
 
     } catch (error: any) {
         console.error("Erro ao extrair questões:", error);
+        // Log more details if available
+        if (error.message) console.error("Mensagem de erro da IA:", error.message);
         return [];
     }
 };

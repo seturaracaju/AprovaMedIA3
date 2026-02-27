@@ -5,6 +5,7 @@ import { Course, Class } from '../types';
 
 const AuthPage: React.FC = () => {
     const [isLogin, setIsLogin] = useState(true);
+    const [isForgotPassword, setIsForgotPassword] = useState(false);
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [name, setName] = useState('');
@@ -34,7 +35,21 @@ const AuthPage: React.FC = () => {
         setMessage(null);
 
         try {
-            if (isLogin) {
+            if (isForgotPassword) {
+                if (!email) throw new Error("Por favor, insira seu e-mail.");
+                
+                // Remove trailing slashes and construct a clean redirect URL
+                const baseUrl = window.location.origin.replace(/\/$/, '');
+                const redirectUrl = `${baseUrl}/#type=recovery`;
+                
+                console.log("Solicitando reset de senha com redirecionamento para:", redirectUrl);
+
+                const { error } = await supabase.auth.resetPasswordForEmail(email, {
+                    redirectTo: redirectUrl,
+                });
+                if (error) throw error;
+                setMessage('Instruções de redefinição de senha enviadas para o seu e-mail.');
+            } else if (isLogin) {
                 const { error } = await supabase.auth.signInWithPassword({ email, password });
                 if (error) throw error;
                 // The onAuthStateChange listener in App.tsx will handle the redirect
@@ -59,23 +74,22 @@ const AuthPage: React.FC = () => {
     
     const logoUrl = "https://pub-872633efa2d545638be12ea86363c2ca.r2.dev/WhatsApp%20Image%202025-11-09%20at%2013.47.15%20(1).png";
 
-
     return (
         <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
             <div className="max-w-md w-full bg-white p-8 rounded-2xl shadow-lg">
                 <img src={logoUrl} alt="AprovaMed IA Logo" className="w-full h-auto mx-auto mb-6" />
                 <h2 className="text-2xl font-bold text-center text-gray-800 mb-2">
-                    {isLogin ? 'Bem-vindo de volta!' : 'Crie sua Conta de Aluno'}
+                    {isForgotPassword ? 'Redefinir Senha' : isLogin ? 'Bem-vindo de volta!' : 'Crie sua Conta de Aluno'}
                 </h2>
                 <p className="text-center text-gray-500 mb-6 text-sm">
-                    {isLogin ? 'Acesse sua conta para continuar seus estudos.' : 'Preencha os dados para iniciar sua jornada.'}
+                    {isForgotPassword ? 'Insira seu e-mail para receber um link de redefinição.' : isLogin ? 'Acesse sua conta para continuar seus estudos.' : 'Preencha os dados para iniciar sua jornada.'}
                 </p>
 
                 {error && <p className="bg-red-100 text-red-700 p-3 rounded-md text-sm mb-4">{error}</p>}
                 {message && <p className="bg-green-100 text-green-700 p-3 rounded-md text-sm mb-4">{message}</p>}
 
                 <form onSubmit={handleAuth} className="space-y-4">
-                    {!isLogin && (
+                    {!isLogin && !isForgotPassword && (
                         <>
                             <input type="text" placeholder="Nome Completo" value={name} onChange={e => setName(e.target.value)} required className="w-full px-4 py-3 border rounded-lg bg-white text-gray-800 placeholder:text-gray-400 focus:ring-2 focus:ring-primary focus:outline-none" />
                             <select value={selectedCourseId} onChange={e => setSelectedCourseId(e.target.value)} required className="w-full px-4 py-3 border rounded-lg bg-white text-gray-800 focus:ring-2 focus:ring-primary focus:outline-none">
@@ -89,17 +103,44 @@ const AuthPage: React.FC = () => {
                         </>
                     )}
                     <input type="email" placeholder="Email" value={email} onChange={e => setEmail(e.target.value)} required className="w-full px-4 py-3 border rounded-lg bg-white text-gray-800 placeholder:text-gray-400 focus:ring-2 focus:ring-primary focus:outline-none" />
-                    <input type="password" placeholder="Senha" value={password} onChange={e => setPassword(e.target.value)} required className="w-full px-4 py-3 border rounded-lg bg-white text-gray-800 placeholder:text-gray-400 focus:ring-2 focus:ring-primary focus:outline-none" />
+                    
+                    {!isForgotPassword && (
+                        <input type="password" placeholder="Senha" value={password} onChange={e => setPassword(e.target.value)} required className="w-full px-4 py-3 border rounded-lg bg-white text-gray-800 placeholder:text-gray-400 focus:ring-2 focus:ring-primary focus:outline-none" />
+                    )}
+                    
+                    {isLogin && !isForgotPassword && (
+                        <div className="flex justify-end">
+                            <button type="button" onClick={() => { setIsForgotPassword(true); setError(null); setMessage(null); }} className="text-sm text-primary hover:underline">
+                                Esqueceu a senha?
+                            </button>
+                        </div>
+                    )}
+
                     <button type="submit" disabled={loading} className="w-full px-4 py-3 bg-primary text-white font-bold rounded-lg hover:bg-primary-dark disabled:bg-gray-400">
-                        {loading ? 'Carregando...' : (isLogin ? 'Entrar' : 'Cadastrar')}
+                        {loading ? 'Carregando...' : isForgotPassword ? 'Enviar Link' : isLogin ? 'Entrar' : 'Cadastrar'}
                     </button>
                 </form>
 
                 <p className="text-center text-sm text-gray-600 mt-6">
-                    {isLogin ? 'Não tem uma conta?' : 'Já tem uma conta?'}
-                    <button onClick={() => { setIsLogin(!isLogin); setError(null); setMessage(null); }} className="font-semibold text-primary hover:underline ml-1">
-                        {isLogin ? 'Cadastre-se' : 'Faça login'}
-                    </button>
+                    {isForgotPassword ? (
+                        <button onClick={() => { setIsForgotPassword(false); setIsLogin(true); setError(null); setMessage(null); }} className="font-semibold text-primary hover:underline ml-1">
+                            Voltar para o login
+                        </button>
+                    ) : isLogin ? (
+                        <>
+                            Não tem uma conta?
+                            <button onClick={() => { setIsLogin(false); setError(null); setMessage(null); }} className="font-semibold text-primary hover:underline ml-1">
+                                Cadastre-se
+                            </button>
+                        </>
+                    ) : (
+                        <>
+                            Já tem uma conta?
+                            <button onClick={() => { setIsLogin(true); setError(null); setMessage(null); }} className="font-semibold text-primary hover:underline ml-1">
+                                Faça login
+                            </button>
+                        </>
+                    )}
                 </p>
             </div>
         </div>

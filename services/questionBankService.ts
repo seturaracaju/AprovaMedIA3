@@ -201,6 +201,34 @@ export const appendQuestionsToSet = async (questionSetId: string, newQuestions: 
     }
 };
 
+export const createEmptyQuestionSet = async (disciplineId: string, subjectName: string): Promise<QuestionSet | null> => {
+    const { data, error } = await supabase
+        .from('question_sets')
+        .insert({
+            discipline_id: disciplineId,
+            subject_name: subjectName,
+            questions: [],
+            question_count: 0
+        })
+        .select()
+        .single();
+
+    if (error) {
+        console.error('Error creating empty question set:', error);
+        throw error;
+    }
+
+    return data ? {
+        id: data.id,
+        disciplineId: data.discipline_id,
+        subjectName: data.subject_name,
+        questions: data.questions || [],
+        createdAt: data.created_at,
+        imageUrl: data.image_url,
+        question_count: data.question_count
+    } : null;
+};
+
 export const updateQuestionSetDetails = async (id: string, updates: { subjectName?: string; imageUrl?: string }): Promise<QuestionSet | null> => {
     const updatePayload: { subject_name?: string; image_url?: string } = {};
     if (updates.subjectName) {

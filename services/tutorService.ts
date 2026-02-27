@@ -7,10 +7,17 @@ import * as analyticsService from './analyticsService';
 const MODEL_NAME = 'gemini-3-flash-preview';
 
 const getAI = () => {
-    if (!process.env.API_KEY) {
-        throw new Error("API_KEY environment variable not set");
+    // O Vite substituirá estas strings pelos valores reais durante o build
+    // @ts-ignore
+    const apiKey = (typeof process !== 'undefined' && process.env?.GEMINI_API_KEY) || 
+                   // @ts-ignore
+                   (typeof import.meta !== 'undefined' && import.meta.env?.VITE_GEMINI_API_KEY);
+
+    if (!apiKey) {
+        console.error("ERRO: GEMINI_API_KEY não encontrada no ambiente.");
+        throw new Error("Chave de API não configurada. Verifique os Secrets no AI Studio e faça um novo Deploy.");
     }
-    return new GoogleGenAI({ apiKey: process.env.API_KEY });
+    return new GoogleGenAI({ apiKey: apiKey });
 };
 
 // Funções de busca de contexto agora são chamadas apenas quando o usuário solicita explicitamente

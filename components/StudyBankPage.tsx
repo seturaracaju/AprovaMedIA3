@@ -265,8 +265,9 @@ const StudyBankPage: React.FC = () => {
         setIsStudentModalOpen(false);
     };
     
-    const createItem = async (type: 'course' | 'module' | 'discipline' | 'class', parentId: string | null) => {
-        const name = prompt(`Nome do novo ${type === 'class' ? 'Turma' : type === 'course' ? 'Curso' : type === 'module' ? 'Módulo' : 'Disciplina'}:`);
+    const createItem = async (type: 'course' | 'module' | 'discipline' | 'class' | 'question_set', parentId: string | null) => {
+        const typeName = type === 'class' ? 'Turma' : type === 'course' ? 'Curso' : type === 'module' ? 'Módulo' : type === 'discipline' ? 'Disciplina' : 'Assunto';
+        const name = prompt(`Nome do novo ${typeName}:`);
         if (!name) return;
         
         try {
@@ -275,6 +276,7 @@ const StudyBankPage: React.FC = () => {
                 case 'module': if(parentId) await academicService.addModule(parentId, name); break;
                 case 'discipline': if(parentId) await academicService.addDiscipline(parentId, name); break;
                 case 'class': if(parentId) await academicService.addClass(parentId, name); break;
+                case 'question_set': if(parentId) await questionBankService.createEmptyQuestionSet(parentId, name); break;
             }
             loadData();
         } catch (e) {
@@ -346,8 +348,10 @@ const StudyBankPage: React.FC = () => {
             })),
             selectedId: viewingSet?.id || null,
             onSelect: (item) => setViewingSet(questionSets.find(qs => qs.id === item.id) || null),
+            onAdd: () => createItem('question_set', selectedDisciplineId),
             onEdit: (item) => setEditingItem({ item: questionSets.find(qs => qs.id === item.id), type: 'question_set' } as any),
             onDelete: (id) => handleDelete(id, 'question_set'),
+            onMove: (item) => setMovingItem(questionSets.find(qs => qs.id === item.id) || null),
             renderCustomItem: (item) => (
                 <div className="flex items-center gap-3 w-full">
                      {item.imageUrl ? (
@@ -559,12 +563,20 @@ const StudyBankPage: React.FC = () => {
 
                                         {/* Action Footer */}
                                         <div className="mt-auto p-3 flex justify-between items-center bg-white">
-                                            <button 
-                                                onClick={(e) => { e.stopPropagation(); handleCreateTestRequest(qs.subjectName, qs.questions, qs.disciplineId); }}
-                                                className="text-xs font-bold text-gray-500 hover:text-gray-800 hover:bg-gray-100 px-3 py-2 rounded-lg transition-colors"
-                                            >
-                                                Criar Teste
-                                            </button>
+                                            <div className="flex gap-1">
+                                                <button 
+                                                    onClick={(e) => { e.stopPropagation(); handleCreateTestRequest(qs.subjectName, qs.questions, qs.disciplineId); }}
+                                                    className="text-xs font-bold text-gray-500 hover:text-gray-800 hover:bg-gray-100 px-2 py-2 rounded-lg transition-colors"
+                                                >
+                                                    Criar Teste
+                                                </button>
+                                                <button 
+                                                    onClick={(e) => { e.stopPropagation(); setMovingItem(qs); }}
+                                                    className="text-xs font-bold text-gray-500 hover:text-gray-800 hover:bg-gray-100 px-2 py-2 rounded-lg transition-colors"
+                                                >
+                                                    Mover
+                                                </button>
+                                            </div>
                                             <div className="flex gap-2">
                                                 <button 
                                                     onClick={() => setViewingSet(qs)}

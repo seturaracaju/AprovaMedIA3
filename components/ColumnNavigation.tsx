@@ -1,6 +1,6 @@
 
 import React, { useState } from 'react';
-import { PlusCircleIcon, SearchIcon, ChevronRightIcon, MoreVerticalIcon, EditIcon, TrashIcon, LayersIcon, ImageIcon } from './IconComponents';
+import { PlusCircleIcon, SearchIcon, ChevronRightIcon, MoreVerticalIcon, EditIcon, TrashIcon, LayersIcon, ImageIcon, MoveIcon } from './IconComponents';
 
 export interface ColumnItem {
     id: string;
@@ -19,6 +19,7 @@ export interface ColumnDefinition {
     onAdd?: () => void;
     onEdit?: (item: ColumnItem) => void;
     onDelete?: (id: string) => void;
+    onMove?: (item: ColumnItem) => void;
     renderCustomItem?: (item: ColumnItem) => React.ReactNode;
     emptyMessage?: string;
 }
@@ -35,6 +36,7 @@ const Column: React.FC<ColumnDefinition> = ({
     onAdd, 
     onEdit, 
     onDelete,
+    onMove,
     renderCustomItem,
     emptyMessage 
 }) => {
@@ -142,7 +144,7 @@ const Column: React.FC<ColumnDefinition> = ({
                                 )}
 
                                 {/* Management Actions */}
-                                {(onEdit || onDelete) && (
+                                {(onEdit || onDelete || onMove) && (
                                     <div className={`absolute right-1 top-1/2 -translate-y-1/2 ${isSelected || isMenuOpen ? 'opacity-100 z-40' : 'opacity-0 group-hover:opacity-100'} transition-opacity`}>
                                          <div className="relative">
                                             <button 
@@ -158,6 +160,11 @@ const Column: React.FC<ColumnDefinition> = ({
                                                         {onEdit && (
                                                             <button onClick={(e) => { e.stopPropagation(); setMenuOpenId(null); onEdit(item); }} className="w-full text-left px-3 py-2 text-xs hover:bg-gray-50 flex items-center gap-2 text-gray-700 transition-colors">
                                                                 <EditIcon className="w-3 h-3" /> Editar
+                                                            </button>
+                                                        )}
+                                                        {onMove && (
+                                                            <button onClick={(e) => { e.stopPropagation(); setMenuOpenId(null); onMove(item); }} className="w-full text-left px-3 py-2 text-xs hover:bg-gray-50 flex items-center gap-2 text-gray-700 transition-colors border-t border-gray-50">
+                                                                <MoveIcon className="w-3 h-3" /> Mover
                                                             </button>
                                                         )}
                                                         {onDelete && (

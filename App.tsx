@@ -6,6 +6,7 @@ import AuthPage from './components/AuthPage';
 import StudentApp from './components/StudentApp';
 import TeacherApp from './components/TeacherApp';
 import SubscriptionPage from './components/SubscriptionPage';
+import UpdatePasswordPage from './components/UpdatePasswordPage';
 import * as academicService from './services/academicService';
 import { Student } from './types';
 import { UserProvider } from './contexts/UserContext';
@@ -18,6 +19,7 @@ const App: React.FC = () => {
     const [studentProfile, setStudentProfile] = useState<Student | null>(null);
     const [userRole, setUserRole] = useState<'teacher' | 'student' | null>(null);
     const [loading, setLoading] = useState(true);
+    const [isRecovery, setIsRecovery] = useState(false);
     
     // Use a ref to track the last user ID to prevent reloads on window focus
     const lastUserId = useRef<string | undefined>(undefined);
@@ -107,11 +109,20 @@ const App: React.FC = () => {
     };
 
     useEffect(() => {
+        // Check if the URL contains a recovery token
+        if (window.location.hash.includes('type=recovery')) {
+            setIsRecovery(true);
+        }
+
         supabase.auth.getSession().then(({ data: { session } }) => {
             checkUserRole(session);
         });
 
         const { data: { subscription } } = supabase.auth.onAuthStateChange((event, newSession) => {
+            if (event === 'PASSWORD_RECOVERY') {
+                setIsRecovery(true);
+            }
+            
             if (event === 'TOKEN_REFRESHED') return;
             
             // CORREÇÃO: Removemos a dependência de 'userRole' aqui.
@@ -151,6 +162,13 @@ const App: React.FC = () => {
         );
     }
     
+    if (isRecovery) {
+        return <UpdatePasswordPage onPasswordUpdated={() => {
+            setIsRecovery(false);
+            window.location.hash = '';
+        }} />;
+    }
+
     if (!session) {
         return <AuthPage />;
     }
